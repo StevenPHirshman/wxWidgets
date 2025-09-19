@@ -286,6 +286,8 @@ public:
     wxToolBarBase();
     virtual ~wxToolBarBase();
 
+    virtual void SetHelpIdAtPoint(wxHelpEvent& event) override;
+
     // toolbar construction
     // --------------------
 

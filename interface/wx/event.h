@@ -3831,6 +3831,9 @@ public:
     clicked-on window, and then either show some suitable help or call wxEvent::Skip()
     if the identifier is unrecognised.
 
+    Added a virtual function SetHelpIdAtPoint (in windows.h) to convert
+    ToolBar Id in context help mode to actual pressed button Id for derived wxToolBar class
+
     Calling Skip is important because it allows wxWidgets to generate further
     events for ancestors of the clicked-on window. Otherwise it would be impossible to
     show help for container windows, since processing would stop after the first window
@@ -4085,7 +4088,7 @@ public:
     bool IsPrimary() const;
 
     /**
-        Returns the ID of the touch. This allows to track the move of an specific touch point.
+        Returns the ID of the touch. This allows to track the move of a specific touch point.
     */
     const wxTouchSequenceId& GetSequenceId() const;
 };

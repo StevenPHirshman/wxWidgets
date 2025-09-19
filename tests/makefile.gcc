@@ -190,6 +190,7 @@ TEST_GUI_OBJECTS =  \
 	$(OBJS)\test_gui_htmllboxtest.o \
 	$(OBJS)\test_gui_hyperlinkctrltest.o \
 	$(OBJS)\test_gui_itemcontainertest.o \
+	$(OBJS)\test_gui_infobar.o \
 	$(OBJS)\test_gui_label.o \
 	$(OBJS)\test_gui_listbasetest.o \
 	$(OBJS)\test_gui_listbooktest.o \
@@ -1011,6 +1012,9 @@ $(OBJS)\test_gui_hyperlinkctrltest.o: ./controls/hyperlinkctrltest.cpp
 	$(CXX) -c -o $@ $(TEST_GUI_CXXFLAGS) $(CPPDEPS) $<
 
 $(OBJS)\test_gui_itemcontainertest.o: ./controls/itemcontainertest.cpp
+	$(CXX) -c -o $@ $(TEST_GUI_CXXFLAGS) $(CPPDEPS) $<
+
+$(OBJS)\test_gui_infobar.o: ./controls/infobar.cpp
 	$(CXX) -c -o $@ $(TEST_GUI_CXXFLAGS) $(CPPDEPS) $<
 
 $(OBJS)\test_gui_label.o: ./controls/label.cpp

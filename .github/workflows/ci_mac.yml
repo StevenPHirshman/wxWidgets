@@ -82,9 +82,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: wxMac ARM with ASAN
+        - name: wxMac ARM ASAN not compatible
           runner: self-hosted
           arch: arm64
+          configure_flags: --enable-std_string_conv_in_wxstring --disable-compat32 --disable-sys-libs
           use_asan: true
         - name: wxMac Intel C++17
           runner: macos-14
@@ -141,7 +142,7 @@ jobs:
             ;;
         esac
         if [ -z ${{ matrix.allow_warnings }} ]; then
-          error_opts="-Werror -Wsuggest-override $allow_warn_opt"
+          error_opts="-DwxENABLE_EXTRA_WARNINGS -Werror -Wsuggest-override $allow_warn_opt"
           echo "wxMAKEFILE_ERROR_CXXFLAGS=$error_opts" >> $GITHUB_ENV
           echo "wxMAKEFILE_CXXFLAGS=$wxMAKEFILE_CXXFLAGS $error_opts" >> $GITHUB_ENV
         fi

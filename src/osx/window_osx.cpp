@@ -235,7 +235,7 @@ wxWindowMac::~wxWindowMac()
                 wxLogLastError(wxT("UnregisterHotKey"));
             }
         }
-    }    
+    }
 #endif
 
     MacInvalidateBorders() ;
@@ -261,6 +261,13 @@ wxWindowMac::~wxWindowMac()
     delete GetPeer() ;
 }
 
+void wxWindowMac::MacClipsToBounds( bool clip )
+{
+    if ( m_peer )
+        m_peer->ClipsToBounds(clip);
+}
+
+
 void wxWindowMac::MacSetClipChildren()
 {
     m_clipChildren = true ;
@@ -275,8 +282,8 @@ WXWidget wxWindowMac::GetHandle() const
     return nullptr;
 }
 
-wxOSXWidgetImpl* wxWindowMac::GetPeer() const 
-{ 
+wxOSXWidgetImpl* wxWindowMac::GetPeer() const
+{
     return m_peer == kOSXNoWidgetImpl ? nullptr : m_peer ;
 }
 
@@ -291,7 +298,7 @@ void wxWindowMac::DontCreatePeer()
 }
 
 void wxWindowMac::SetWrappingPeer(wxOSXWidgetImpl* wrapper)
-{ 
+{
     wxOSXWidgetImpl* inner = GetPeer();
     wxASSERT_MSG( inner != nullptr && inner->IsOk(), "missing or incomplete inner peer" );
     wxASSERT_MSG( wrapper != nullptr && wrapper->IsOk(), "missing or incomplete wrapper" );
@@ -345,8 +352,8 @@ void wxWindowMac::SetPeer(wxOSXWidgetImpl* peer)
     }
 }
 
-bool wxWindowMac::MacIsUserPane() const 
-{ 
+bool wxWindowMac::MacIsUserPane() const
+{
     return GetPeer() == nullptr || GetPeer()->IsUserPane();
 }
 
@@ -1055,13 +1062,6 @@ wxSize wxWindowMac::DoGetBestSize() const
             }
             else
 #endif
-#if wxUSE_SPINBTN
-            if ( IsKindOf( CLASSINFO( wxSpinButton ) ) )
-            {
-                r.height = 24 ;
-            }
-            else
-#endif
             {
                 // return wxWindowBase::DoGetBestSize() ;
             }
@@ -1183,7 +1183,7 @@ void wxWindowMac::DoSetClientSize(int clientwidth, int clientheight)
     }
 }
 
-double wxWindowMac::GetContentScaleFactor() const 
+double wxWindowMac::GetContentScaleFactor() const
 {
     return GetPeer()->GetContentScaleFactor();
 }
@@ -2421,7 +2421,7 @@ wxHotKeyHandler(EventHandlerCallRef WXUNUSED(nextHandler),
 
             wxKeyEvent wxevent(wxEVT_HOTKEY);
             wxevent.SetId(hotKeyId.id);
-            wxTheApp->MacCreateKeyEvent( wxevent, s_hotkeys[i].window , keymessage , 
+            wxTheApp->MacCreateKeyEvent( wxevent, s_hotkeys[i].window , keymessage ,
                                         modifiers , when , 0 ) ;
 
             s_hotkeys[i].window->HandleWindowEvent(wxevent);
@@ -2504,7 +2504,7 @@ bool wxWindowMac::UnregisterHotKey(int hotkeyId)
 
                 return false;
             }
-            else 
+            else
                 return true;
         }
     }
@@ -2649,7 +2649,7 @@ wxIMPLEMENT_ABSTRACT_CLASS(wxWidgetImpl, wxObject);
 
 wxWidgetImpl::wxWidgetImpl( wxWindowMac* peer , int flags )
 {
-    Init();    
+    Init();
     m_isRootControl = flags & Widget_IsRoot;
     m_isUserPane = flags & Widget_IsUserPane;
     m_wantsUserKey = m_isUserPane || (flags & Widget_UserKeyEvents);
@@ -2698,6 +2698,10 @@ bool wxWidgetImpl::NeedsFrame() const
 }
 
 void wxWidgetImpl::SetDrawingEnabled(bool WXUNUSED(enabled))
+{
+}
+
+void wxWidgetImpl::ClipsToBounds(bool WXUNUSED(clip))
 {
 }
 

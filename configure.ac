@@ -13,7 +13,7 @@ dnl ---------------------------------------------------------------------------
 dnl initialization
 dnl ---------------------------------------------------------------------------
 
-AC_INIT([wxWidgets], [3.3.0], [wx-dev@googlegroups.com])
+AC_INIT([wxWidgets], [3.3.2], [wx-dev@googlegroups.com])
 
 dnl the file passed to AC_CONFIG_SRCDIR should be specific to our package
 AC_CONFIG_SRCDIR([wx-config.in])
@@ -39,7 +39,7 @@ dnl wx_release_number += 1
 
 wx_major_version_number=3
 wx_minor_version_number=3
-wx_release_number=0
+wx_release_number=2
 wx_subrelease_number=0
 
 WX_RELEASE=$wx_major_version_number.$wx_minor_version_number
@@ -261,6 +261,9 @@ case "${host}" in
     dnl      USE_UNIX  must be set and not USE_WIN32
     PROGRAM_EXT=".exe"
     DEFAULT_DEFAULT_wxUSE_MSW=1
+    dnl This is not the final value, we may reset it to 0 if we use Cygwin in
+    dnl Unix emulation mode.
+    USE_WIN32=1
   ;;
 
   *-*-darwin* )
@@ -329,6 +332,7 @@ DEFAULT_wxUSE_HOTKEY=auto
 DEFAULT_wxUSE_MEDIACTRL=auto
 DEFAULT_wxUSE_METAFILE=auto
 DEFAULT_wxUSE_OPENGL=auto
+DEFAULT_wxUSE_SECRETSTORE=auto
 DEFAULT_wxUSE_WEBVIEW_EDGE=no
 
 dnl Mac/Cocoa users need to enable building universal binaries explicitly
@@ -530,6 +534,7 @@ WX_ARG_SYS_WITH(libxpm,    [  --with-libxpm           use libxpm (XPM file forma
 WX_ARG_WITH(libiconv,      [  --with-libiconv         use libiconv (character conversion)], wxUSE_LIBICONV)
 WX_ARG_WITH(libmspack,     [  --with-libmspack        use libmspack (CHM help files loading)], wxUSE_LIBMSPACK)
 WX_ARG_WITHOUT(gtkprint,   [  --without-gtkprint      don't use GTK printing support], wxUSE_GTKPRINT)
+WX_ARG_WITHOUT(wayland,    [  --without-wayland       don't use Wayland-specific code], wxUSE_WAYLAND)
 WX_ARG_WITH(gnomevfs,      [  --with-gnomevfs         use GNOME VFS for associating MIME types], wxUSE_LIBGNOMEVFS)
 WX_ARG_WITH(libnotify,     [  --with-libnotify        use libnotify for notifications], wxUSE_LIBNOTIFY)
 WX_ARG_WITH(opengl,        [  --with-opengl           use OpenGL (or Mesa)], wxUSE_OPENGL)
@@ -557,9 +562,9 @@ WX_ARG_SYS_WITH(zlib,      [  --with-zlib             use zlib for LZW compressi
 WX_ARG_SYS_WITH(expat,     [  --with-expat            enable XML support using expat parser], wxUSE_EXPAT)
 
 WX_ARG_WITH(libcurl,       [  --with-libcurl          use libcurl-based wxWebRequest], wxUSE_LIBCURL)
-dnl USE_WIN32 is not defined yet, so we always define this option even if it's
-dnl MSW-specific, which is not ideal, but better than never defining it.
+if test "$USE_WIN32" = 1; then
 WX_ARG_WITH(winhttp,       [  --with-winhttp          use WinHTTP-based wxWebRequest], wxUSE_WINHTTP)
+fi
 if test "$USE_DARWIN" = 1; then
 WX_ARG_WITH(urlsession,    [  --with-urlsession       use NSURLSession-based wxWebRequest], wxUSE_URLSESSION)
 fi
@@ -724,7 +729,9 @@ WX_ARG_FEATURE(fontmap,       [  --enable-fontmap        use font encodings conv
 WX_ARG_FEATURE(fs_archive,    [  --enable-fs_archive     use virtual archive filesystems], wxUSE_FS_ARCHIVE)
 WX_ARG_FEATURE(fs_inet,       [  --enable-fs_inet        use virtual HTTP/FTP filesystems], wxUSE_FS_INET)
 WX_ARG_FEATURE(fs_zip,        [  --enable-fs_zip         now replaced by fs_archive], wxUSE_FS_ZIP)
+if test "$USE_WIN32" = 1 -o "$USE_DARWIN"; then
 WX_ARG_FEATURE(fsvolume,      [  --enable-fsvolume       use wxFSVolume class], wxUSE_FSVOLUME)
+fi
 WX_ARG_FEATURE(fswatcher,     [  --enable-fswatcher      use wxFileSystemWatcher class], wxUSE_FSWATCHER)
 WX_ARG_FEATURE(geometry,      [  --enable-geometry       use geometry class], wxUSE_GEOMETRY)
 WX_ARG_FEATURE(log,           [  --enable-log            use logging system], wxUSE_LOG)
@@ -1470,7 +1477,6 @@ esac
 dnl Determine whether we want to use Cygwin as Windows or POSIX platform: the
 dnl latter makes more sense for wxGTK/X11 ports
 wants_win32=0
-doesnt_want_win32=0
 case "${host}" in
   *-*-cygwin*)
       if test "$wxUSE_MSW" = 1 ; then
@@ -1496,7 +1502,8 @@ case "${host}" in
         if test "$wx_cv_nocygwin" = "yes"; then
             wants_win32=1
         else
-            doesnt_want_win32=1
+            dnl Undo USE_WIN32=1 done above.
+            USE_WIN32=0
         fi
       fi
       if test "$wants_win32" = 1 ; then
@@ -1513,8 +1520,6 @@ if test "$wxUSE_WINE" = "yes"; then
     LDFLAGS_GUI="-mwindows"
 fi
 
-dnl NB: The two tests below are *NOT* mutually exclusive! They should only
-dnl     take effect on Cygwin/Mingw and not other platforms.
 if test "$wants_win32" = 1 ; then
     USE_UNIX=0
     USE_WIN32=1
@@ -1523,11 +1528,6 @@ if test "$wants_win32" = 1 ; then
     AC_DEFINE(__GNUWIN32__)
     AC_DEFINE(STRICT)
 fi
-if test "$doesnt_want_win32" = 1 ; then
-    USE_UNIX=1
-    USE_WIN32=0
-fi
-dnl (end of Windows-only piece)
 
 if test "$USE_UNIX" = 1 ; then
     wxUSE_UNIX=yes
@@ -3046,6 +3046,48 @@ installed, where VER is 2, 3 or 4.
                            )
             CFLAGS=$save_CFLAGS
         ])
+
+        dnl Also check for wayland-client presence if we use Wayland and its
+        dnl use was not explicitly disabled.
+        if test "$wx_cv_gdk_wayland" = "yes" -a "$wxUSE_WAYLAND" != "no"; then
+            PKG_CHECK_MODULES(WAYLAND_CLIENT, [wayland-client],
+                [
+                    wx_cv_wayland_client=yes
+                    CFLAGS="$WAYLAND_CLIENT_CFLAGS $CFLAGS"
+                    CXXFLAGS="$WAYLAND_CLIENT_CFLAGS $CXXFLAGS"
+                    GUI_TK_LIBRARY="$GUI_TK_LIBRARY $WAYLAND_CLIENT_LIBS"
+                ],
+                [
+                    wx_cv_wayland_client=no
+                ]
+            )
+
+            if test "$wx_cv_wayland_client" = "yes"; then
+                AC_CACHE_CHECK([for wayland-scanner],
+                    wx_cv_wayland_scanner,
+                    [
+                        wx_cv_wayland_scanner=`$PKG_CONFIG --variable=wayland_scanner wayland-scanner 2>/dev/null`
+                    ]
+                )
+                WAYLAND_SCANNER=$wx_cv_wayland_scanner
+            fi
+
+            if test -n "$WAYLAND_SCANNER" ; then
+                AC_DEFINE(wxHAVE_WAYLAND_CLIENT)
+                AC_CONFIG_COMMANDS([wayland-protocols],
+                    [
+                        mkdir -p lib/wx/include/${TOOLCHAIN_FULLNAME}/wx/protocols
+                        $WAYLAND_SCANNER client-header $srcdir/src/unix/protocols/pointer-warp-v1.xml lib/wx/include/${TOOLCHAIN_FULLNAME}/wx/protocols/pointer-warp-v1-client-protocol.h
+                        $WAYLAND_SCANNER private-code $srcdir/src/unix/protocols/pointer-warp-v1.xml lib/wx/include/${TOOLCHAIN_FULLNAME}/wx/protocols/pointer-warp-v1-client-protocol.c
+                    ],
+                    [
+                        WAYLAND_SCANNER=$WAYLAND_SCANNER
+                    ]
+                )
+            else
+                AC_MSG_WARN([Wayland-specific code will be disabled])
+            fi
+        fi
     fi
 
     if test "$wxUSE_DFB" = 1; then
@@ -3377,7 +3419,7 @@ if test "$wxUSE_OPENGL" = "yes" -o "$wxUSE_OPENGL" = "auto"; then
     dnl look in glcanvas.h for the list of platforms supported by wxGlCanvas:
 
     if test "$wxUSE_OSX_COCOA" = 1; then
-        OPENGL_LIBS="-framework OpenGL -framework AGL"
+        OPENGL_LIBS="-framework OpenGL"
     elif test "$wxUSE_MSW" = 1; then
         OPENGL_LIBS="-lopengl32"
     elif test "$wxUSE_X11" = 1 -o "$wxUSE_GTK" = 1 -o "$wxUSE_QT" = 1; then
@@ -3519,17 +3561,21 @@ if test "$wxUSE_SHARED" = "yes"; then
                 wx_cv_elf_symver_multiple,
                 [
                     echo "lib_new {}; lib_old { *; };" >conftest.sym
+                    AC_LANG_PUSH(C++)
                     AC_LINK_IFELSE([
                         AC_LANG_SOURCE([
                             #include "wx/private/elfversion.h"
-                            wxELF_SYMVER("foo","foo@lib_old")
-                            wxELF_SYMVER("foo","foo@@lib_new")
+                            extern "C" {
+                            wxELF_SYMVER("_foo","_foo@lib_old")
+                            wxELF_SYMVER("_foo","_foo@@lib_new")
                             void foo() {}
+                            }
                             int main() { return 0; }
                         ])],
                         wx_cv_elf_symver_multiple=yes,
                         wx_cv_elf_symver_multiple=no
                     )
+                    AC_LANG_POP()
                     rm -f conftest.sym
                 ]
             )
@@ -3541,16 +3587,20 @@ if test "$wxUSE_SHARED" = "yes"; then
                     wx_cv_elf_symver,
                     [
                         echo "lib_new {}; lib_old { *; };" >conftest.sym
+                        AC_LANG_PUSH(C++)
                         AC_LINK_IFELSE([
                             AC_LANG_SOURCE([
                                 #include "wx/private/elfversion.h"
-                                wxELF_SYMVER("foo","foo@@lib_new")
+                                extern "C" {
+                                wxELF_SYMVER("_foo","_foo@@lib_new")
                                 void foo() {}
+                                }
                                 int main() { return 0; }
                             ])],
                             wx_cv_elf_symver=yes,
                             wx_cv_elf_symver=no
                         )
+                        AC_LANG_POP()
                         rm -f conftest.sym
                     ]
                 )
@@ -3628,17 +3678,15 @@ if test "$wxUSE_SHARED" = "yes"; then
             DYLIB_RPATH_POSTLINK="${HOST_PREFIX}install_name_tool -id \$@ \$@"
             cat <<EOF >change-install-names
 #!/bin/sh
-libnames=\`cd lib ; ls -1 | grep '\.[[0-9]][[0-9]]*\.dylib\$'\`
+libnames=\$(cd lib ; ls -1 libwx*${WX_RELEASE}.dylib)
 changes=''
 for dep in \${libnames} ; do
-    changes="\${changes} -change \${4}/\${dep} \${3}/\${dep}"
+    target=\$(readlink -f \${4}/\${dep})
+    changes="\${changes} -change \${target} \${3}/\${dep}"
 done
 for i in \${libnames} ; do
-    if test -L \${1}/\${i}; then
-        # skip symbolic links
-        continue
-    fi
-    ${HOST_PREFIX}install_name_tool \${changes} -id \${3}/\${i} \${1}/\${i}
+    lib=\$(readlink -f \${1}/\${i})
+    ${HOST_PREFIX}install_name_tool \${changes} -id \${3}/\${i} \${lib}
 done
 
 if test -f "\${2}/wxrc-${WX_RELEASE}" ; then
@@ -4912,10 +4960,6 @@ else
     fi
 fi
 
-if test "x$wxUSE_REPRODUCIBLE_BUILD" = "xyes"; then
-    AC_DEFINE(wxUSE_REPRODUCIBLE_BUILD)
-fi
-
 dnl ---------------------------------------------------------------------------
 dnl compatibility level
 dnl ---------------------------------------------------------------------------
@@ -5139,7 +5183,7 @@ dnl ---------------------------------------------------------------------------
 dnl Secret storage
 dnl ---------------------------------------------------------------------------
 
-if test "$wxUSE_SECRETSTORE" = "yes"; then
+if test "$wxUSE_SECRETSTORE" != "no"; then
     dnl The required APIs are always available under MSW and OS X but we must
     dnl have GNOME libsecret under Unix to be able to compile this class.
     if test "$wxUSE_MSW" != "1" -a "$wxUSE_OSX_COCOA" != 1; then
@@ -5152,13 +5196,19 @@ if test "$wxUSE_SECRETSTORE" = "yes"; then
                 LIBS="`echo $LIBSECRET_LIBS | sed s/-lsecret-1//g` $LIBS"
             ],
             [
+                if test "$wxUSE_SECRETSTORE" = "yes"; then
+                    AC_MSG_ERROR([wxSecretStore support requested but libsecret was not found])
+                fi
+
+                dnl By default, i.e. if --enable-secretstore wasn't explicitly
+                dnl specified, continue without it.
                 AC_MSG_WARN([libsecret not found, wxSecretStore won't be available])
                 wxUSE_SECRETSTORE=no
             ]
         )
     fi
 
-    if test "$wxUSE_SECRETSTORE" = "yes"; then
+    if test "$wxUSE_SECRETSTORE" != "no"; then
         if test "$USE_DARWIN" = 1; then
             LIBS="-framework Security $LIBS"
         fi
@@ -5451,7 +5501,11 @@ if test "$wxUSE_FS_ZIP" = "yes"; then
 fi
 
 if test "$wxUSE_FSVOLUME" = "yes"; then
-  AC_DEFINE(wxUSE_FSVOLUME)
+  dnl wxFSVolume is not available under iOS, but it's probably not worth
+  dnl warning about this.
+  if test "$wxUSE_OSX_IPHONE" != 1; then
+    AC_DEFINE(wxUSE_FSVOLUME)
+  fi
 fi
 
 if test "$wxUSE_ON_FATAL_EXCEPTION" = "yes"; then
@@ -7117,15 +7171,14 @@ Please install it following the instructions in the manual or remove the
         fi
     fi
 
-fi
-
-if test "$wxUSE_WEBVIEW" = "yes"; then
-    USE_WEBVIEW=1
-    AC_DEFINE(wxUSE_WEBVIEW)
-    SAMPLES_SUBDIRS="$SAMPLES_SUBDIRS webview"
-else
-    USE_WEBVIEW=0
-    AC_MSG_WARN([No wxWebView backends found, disabling wxWebView])
+    if test "$wxUSE_WEBVIEW" = "yes"; then
+        USE_WEBVIEW=1
+        AC_DEFINE(wxUSE_WEBVIEW)
+        SAMPLES_SUBDIRS="$SAMPLES_SUBDIRS webview"
+    else
+        USE_WEBVIEW=0
+        AC_MSG_WARN([No wxWebView backends found, disabling wxWebView])
+    fi
 fi
 
 dnl ---------------------------------------------------------------------------
@@ -7529,12 +7582,14 @@ dnl ---------------------------------------------------------------------------
 dnl wxStyledTextCtrl
 dnl ---------------------------------------------------------------------------
 
-for lib in scintilla lexilla; do
-    WXCONFIG_STC_LIBS="$WXCONFIG_STC_LIBS -lwx${lib}${WX_LIB_FLAVOUR}-${WX_RELEASE}${HOST_SUFFIX}"
-done
+if test "$wxUSE_STC" = "yes" ; then
+    for lib in scintilla lexilla; do
+        WXCONFIG_STC_LIBS="$WXCONFIG_STC_LIBS -lwx${lib}${WX_LIB_FLAVOUR}-${WX_RELEASE}${HOST_SUFFIX}"
+    done
 
-if test "$wxUSE_MSW" = 1 ; then
-    EXTRALIBS_STC="-limm32"
+    if test "$wxUSE_MSW" = 1 ; then
+        EXTRALIBS_STC="-limm32"
+    fi
 fi
 
 dnl ---------------------------------------------------------------------------
@@ -7558,7 +7613,7 @@ STD_BASE_LIBS="base"
 STD_GUI_LIBS=""
 BUILT_WX_LIBS="base"
 
-if test "$wxUSE_SOCKETS" = "yes" ; then
+if test "$wxUSE_SOCKETS" = "yes" -o "$wxUSE_WEBREQUEST" = "yes"; then
     STD_BASE_LIBS="net $STD_BASE_LIBS"
     BUILT_WX_LIBS="net $BUILT_WX_LIBS"
 fi
@@ -7786,7 +7841,7 @@ if test "$SHARED" = 1; then
 fi
 
 LIBS=`echo $LIBS`
-EXTRALIBS="$LDFLAGS $LDFLAGS_VERSIONING $LIBS $PCRE_LINK $DMALLOC_LIBS"
+EXTRALIBS="$LDFLAGS_VERSIONING $PCRE_LINK $DMALLOC_LIBS"
 EXTRALIBS_XML="$EXPAT_LINK"
 EXTRALIBS_HTML="$MSPACK_LINK"
 EXTRALIBS_MEDIA="$GST_LIBS"
@@ -8006,6 +8061,16 @@ if test "$wxUSE_WINE" = "yes"; then
 fi
 
 AC_BAKEFILE([m4_include(autoconf_inc.m4)])
+
+dnl Override some options set by AC_BAKEFILE() above.
+if test "x$wxUSE_REPRODUCIBLE_BUILD" = "xyes"; then
+    AC_DEFINE(wxUSE_REPRODUCIBLE_BUILD)
+    dnl We consider that when --enable-repro-build is used, ar and ranlib
+    dnl support deterministic mode (if they don't, we wouldn't be able to
+    dnl honour this option anyhow).
+    AROPTIONS="rcD"
+    RANLIB="$RANLIB -D"
+fi
 
 dnl make install path absolute (if not already);
 dnl will fail with (some) MSDOS paths
@@ -8270,8 +8335,6 @@ dnl though in this form because AC_CONFIG_LINKS will fail for directories
 dnl on platforms that do not have symlinks.
 dnl AC_CONFIG_LINKS([ include/wx-$WX_RELEASE$WX_FLAVOUR:include ])
 
-if test "$wxWITH_SUBDIRS" != "no"; then
-dnl Configure samples, demos etc. directories, but only if they are present:
 if test "$wxUSE_GUI" = "yes"; then
     SUBDIRS="samples demos utils"
 else
@@ -8318,12 +8381,14 @@ will use built-in instead])
     to fix this.])
         fi
         AC_MSG_RESULT([yes])
-        CATCH2_CFLAGS="-I$wx_top_builddir/3rdparty/catch/single_include"
+        CATCH2_CFLAGS="-I\$(top_srcdir)/3rdparty/catch/single_include"
     fi
 
     AC_SUBST(CATCH2_CFLAGS)
 fi
 
+dnl Configure samples, demos etc. directories, but only if they are present:
+if test "$wxWITH_SUBDIRS" != "no"; then
 for subdir in $SUBDIRS; do
     if test -d ${srcdir}/${subdir} ; then
         if test "$wxUSE_GUI" = "yes"; then

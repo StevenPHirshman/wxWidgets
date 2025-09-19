@@ -2212,6 +2212,8 @@ void wxWindowBase::OnHelp(wxHelpEvent& event)
             }
         }
 
+        SetHelpIdAtPoint(event);
+
         if ( helpProvider->ShowHelpAtPoint(this, pos, origin) )
         {
             // skip the event.Skip() below

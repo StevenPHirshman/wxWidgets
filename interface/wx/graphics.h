@@ -731,6 +731,8 @@ public:
         This can be useful for applying a tilt to your drawing
         commands or for drawing radial patterns.
 
+        @note A positive angle will rotate clockwise, negative counterclockwise.
+
         @param angle
             Rotation angle in radians, clockwise.
 
@@ -752,6 +754,13 @@ public:
         Translates (i.e., moves) the current transformation matrix.
     */
     virtual void Translate(wxDouble dx, wxDouble dy) = 0;
+
+    /**
+        @overload
+
+        @since 3.3.0
+    */
+    void Translate(const wxPoint2DDouble& pt);
 
     /** @}
     */

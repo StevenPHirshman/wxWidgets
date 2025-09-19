@@ -53,7 +53,7 @@ wx_top_builddir = @wx_top_builddir@
 
 DESTDIR = 
 WX_RELEASE = 3.3
-WX_VERSION = $(WX_RELEASE).0
+WX_VERSION = $(WX_RELEASE).2
 LIBDIRNAME = $(wx_top_builddir)/lib
 TEST_CXXFLAGS = $(__test_PCH_INC) $(WX_CPPFLAGS) -D__WX$(TOOLKIT)__ \
 	$(__WXUNIV_DEFINE_p) $(__DEBUG_DEFINE_p) $(__EXCEPTIONS_DEFINE_p) \
@@ -217,6 +217,7 @@ TEST_GUI_OBJECTS =  \
 	test_gui_htmllboxtest.o \
 	test_gui_hyperlinkctrltest.o \
 	test_gui_itemcontainertest.o \
+	test_gui_infobar.o \
 	test_gui_label.o \
 	test_gui_listbasetest.o \
 	test_gui_listbooktest.o \
@@ -1067,6 +1068,9 @@ test_gui_hyperlinkctrltest.o: $(srcdir)/controls/hyperlinkctrltest.cpp $(TEST_GU
 
 test_gui_itemcontainertest.o: $(srcdir)/controls/itemcontainertest.cpp $(TEST_GUI_ODEP)
 	$(CXXC) -c -o $@ $(TEST_GUI_CXXFLAGS) $(srcdir)/controls/itemcontainertest.cpp
+
+test_gui_infobar.o: $(srcdir)/controls/infobar.cpp $(TEST_GUI_ODEP)
+	$(CXXC) -c -o $@ $(TEST_GUI_CXXFLAGS) $(srcdir)/controls/infobar.cpp
 
 test_gui_label.o: $(srcdir)/controls/label.cpp $(TEST_GUI_ODEP)
 	$(CXXC) -c -o $@ $(TEST_GUI_CXXFLAGS) $(srcdir)/controls/label.cpp

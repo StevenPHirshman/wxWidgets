@@ -1448,6 +1448,8 @@ public:
         return GetHelpTextAtPoint(wxDefaultPosition, wxHelpEvent::Origin_Unknown);
     }
 
+    virtual void SetHelpIdAtPoint(wxHelpEvent& WXUNUSED(event)) {}
+
 #else // !wxUSE_HELP
     // silently ignore SetHelpText() calls
     void SetHelpText(const wxString& WXUNUSED(text)) { }

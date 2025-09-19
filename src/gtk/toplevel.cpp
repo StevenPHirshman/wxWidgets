@@ -414,13 +414,24 @@ void wxTopLevelWindowGTK::GTKHandleRealized()
 #if GTK_CHECK_VERSION(3,12,0)
             if (m_gdkDecor && wx_is_at_least_gtk3(12))
             {
-                char layout[sizeof("icon,menu:minimize,maximize,close")];
-                snprintf(layout, sizeof(layout), "icon%s:%s%s%s",
-                     m_gdkDecor & GDK_DECOR_MENU ? ",menu" : "",
-                     m_gdkDecor & GDK_DECOR_MINIMIZE ? "minimize," : "",
-                     m_gdkDecor & GDK_DECOR_MAXIMIZE ? "maximize," : "",
-                     m_gdkFunc & GDK_FUNC_CLOSE ? "close" : "");
-                gtk_header_bar_set_decoration_layout(GTK_HEADER_BAR(titlebar), layout);
+                char* s;
+                g_object_get(gtk_widget_get_settings(m_widget),
+                    "gtk-decoration-layout", &s, nullptr);
+                wxString layout(s);
+                g_free(s);
+
+                const wxString empty;
+                if ((m_gdkDecor & GDK_DECOR_MENU) == 0)
+                    layout.Replace("menu", empty, false);
+                if ((m_gdkDecor & GDK_DECOR_MINIMIZE) == 0)
+                    layout.Replace("minimize", empty, false);
+                if ((m_gdkDecor & GDK_DECOR_MAXIMIZE) == 0)
+                    layout.Replace("maximize", empty, false);
+                if ((m_gdkFunc & GDK_FUNC_CLOSE) == 0)
+                    layout.Replace("close", empty, false);
+
+                gtk_header_bar_set_decoration_layout(GTK_HEADER_BAR(titlebar),
+                                                     layout.utf8_str());
             }
 #endif // 3.12
             // Don't set WM decorations when GTK is using Client Side Decorations
@@ -466,9 +477,27 @@ gtk_frame_map_callback( GtkWidget*,
                         GdkEvent * WXUNUSED(event),
                         wxTopLevelWindow *win )
 {
-    wxLogTrace(TRACE_TLWSIZE, "Mapped for %s", wxDumpWindow(win));
+    win->GTKHandleMapped();
+    return false;
+}
+}
 
-    const bool wasIconized = win->IsIconized();
+void wxTopLevelWindowGTK::GTKHandleMapped()
+{
+    wxLogTrace(TRACE_TLWSIZE, "Mapped for %s", wxDumpWindow(this));
+
+    // We couldn't set the app ID before, as it only works for mapped windows.
+#if defined(GDK_WINDOWING_WAYLAND) && GTK_CHECK_VERSION(3,24,22)
+    GdkWindow* const window = gtk_widget_get_window(m_widget);
+    if (wxGTKImpl::IsWayland(window) && gtk_check_version(3,24,22) == nullptr)
+    {
+        const wxString className(wxTheApp->GetClassName());
+        if (!className.empty())
+            gdk_wayland_window_set_application_id(window, className.utf8_str());
+    }
+#endif
+
+    const bool wasIconized = IsIconized();
     if (wasIconized)
     {
         // Because GetClientSize() returns (0,0) when IsIconized() is true,
@@ -477,21 +506,21 @@ gtk_frame_map_callback( GtkWidget*,
         // tlw that was "rolled up" with some WMs.
         // Queue a resize rather than sending size event directly to allow
         // children to be made visible first.
-        win->m_useCachedClientSize = false;
-        win->m_clientWidth = 0;
-        gtk_widget_queue_resize(win->m_wxwindow);
+        m_useCachedClientSize = false;
+        m_clientWidth = 0;
+        gtk_widget_queue_resize(m_wxwindow);
     }
     // it is possible for m_isShown to be false here, see bug #9909
-    if (win->wxWindowBase::Show(true))
+    if (wxWindowBase::Show(true))
     {
-        win->GTKDoAfterShow();
+        GTKDoAfterShow();
     }
 
     // restore focus-on-map setting in case ShowWithoutActivating() was called
-    gtk_window_set_focus_on_map(GTK_WINDOW(win->m_widget), true);
+    gtk_window_set_focus_on_map(GTK_WINDOW(m_widget), true);
 
-    return false;
-}
+    // Deferred show is no longer possible
+    m_deferShowAllowed = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -581,7 +610,7 @@ wxGetFrameExtents(GdkWindow* window, wxTopLevelWindow::DecorSize* decorSize)
     if (wx_is_at_least_gtk3(10))
         scale = gdk_window_get_scale_factor(window);
 #endif
-    long* p = (long*)data.get();
+    const long* p = (const long*)data.get();
     decorSize->left   = int(p[0]) / scale;
     decorSize->right  = int(p[1]) / scale;
     decorSize->top    = int(p[2]) / scale;
@@ -1344,7 +1373,7 @@ void wxTopLevelWindowGTK::DoSetSize( int x, int y, int width, int height, int si
         wxLogTrace(TRACE_TLWSIZE, "Size set for %s (%d, %d) -> (%d, %d)",
                    wxDumpWindow(this), oldSize.x, oldSize.y, m_width, m_height);
 
-        m_deferShowAllowed = true;
+        m_deferShowAllowed = !gtk_widget_get_mapped(m_widget);
         m_useCachedClientSize = false;
 
 #ifdef __WXGTK3__

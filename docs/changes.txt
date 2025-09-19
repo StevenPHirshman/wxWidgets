@@ -206,6 +206,13 @@ Changes in behaviour which may result in build errors
   the official ones and those using MSVS projects, but also when using
   makefile.vc or CMake, for consistency.
 
+- CMake files are now installed in a versioned subdirectory, e.g.
+  lib/cmake/wxWidgets-3.3, to allow installing multiple versions of wxWidgets
+  simultaneously, and not just "wxWidgets" as before. Please update your
+  CMake files if you rely on the exact name of this directory. Note that
+  nothing needs to be done if you simply use find_package(wxWidgets) as it
+  still works in the same way as before.
+
 - Support for memory debugging that was previously disabled but could be
   activated by using wxUSE_MEMORY_TRACING, wxUSE_GLOBAL_MEMORY_OPERATORS etc
   options was completely removed. Please use address sanitizer or similar
@@ -235,8 +242,93 @@ Changes in behaviour which may result in build errors
   explicitly if you need to use any functions defined there other than
   cursor-related ones.
 
+- wxStyledTextCtrl::AddSelection() erroneously returned int, while the
+  corresponding Scintilla doesn't have any return value, so it was changed
+  to return void, please update your code to not use its return value.
 
-3.3.0: (released 2025-05-22)
+3.3.2: (released 2025-??-??)
+----------------------------
+
+NOTE: In addition to the note below, also incorporate (either by
+      copy or by reference) all the changes in the 3.2 branch (i.e.
+      everything in this file after 3.2.0 in that branch).
+
+NOTE: This file is updated only before the release, please use
+
+    $ git log --notes=changelog --format='%N' v3.3.0..|grep .
+
+      to see all the change log entries since the last release.
+
+      To update the notes, fetch them first:
+
+    $ git fetch origin refs/notes/changelog:refs/notes/changelog
+
+      then use the following command to update them locally
+
+    $ git notes --ref=changelog add -m 'wxPort: description.'
+
+      and finally push it to the server.
+
+    $ git push origin refs/notes/changelog:refs/notes/changelog
+
+      If this fails due to a conflict because you had forgotten to
+      run git-fetch first, you can always reset your local notes
+      (LOSING YOUR CHANGES TO THEM, so make sure to make a copy)
+
+    $ git fetch origin refs/notes/changelog
+    $ git update-ref refs/notes/changelog FETCH_HEAD
+
+      and then redo "git-notes add" and git-push.
+
+
+3.3.1: (released 2025-07-21)
+----------------------------
+
+All:
+
+- Add persistence support for groups of wxRadioButtons (#25530).
+- Add persistence support for wxCheckBox (#25515).
+- Add support for PNG "Description" text chunk (GenevensiS, #25556).
+- Add wxAuiPaneInfo::FloatingClientSize() (Bill Su, #25483).
+- Allow setting app id under supported platforms (#25548).
+- Avoid wxEVT_GRID_SELECT_CELL when creating wxGrid (#25498).
+- CMake fixes and improvements (Maarten Bent, #25466, #25503, #25592).
+- Don't assert in wxGridSizer if sizer is empty (#25641).
+- Fix calling wxDVC::Collapse() from event handler (#25631).
+- Fix overwriting IDs of buttons added to wxPGMultiButton (alilie, #25514).
+- Improve wxRect2DDouble (Blake-Madden, #25497).
+- Restore compatibility in wxPropertyGrid (#25627).
+- wxNumberFormatter improvements (#25614, #25635).
+- Make static reproducible builds under Unix really reproducible (#25502).
+
+wxGTK:
+
+- Fix crash when sorting wxDataViewCtrl with single leaf node (#25625).
+- Fix losing wxListCtrl contents after AppendColumn() (#25519).
+
+wxMSW:
+
+- Fix buffer overrun when getting preferred languages list (#25612).
+- Fix crash when using per-window menu in MDI applications (#25522).
+- Fix crash with wxStaticBitmap inside wxNotebook in dark mode (#25499).
+- Fix disabled wxButton bitmaps appearance in dark mode (#25575).
+- Fix disabled wxStaticText appearance in dark mode (#25574).
+- Fix notebook background in dark high contrast themes (#25542).
+- Fix regression in creation of wxAcceleratorTable with 0 entries (#25517).
+- Fix regression in wxDataViewCtrl border in light mode (#25532).
+- Fix regression in wxTreeCtrl::EnsureVisible() while frozen (#18435).
+- Fix selected toolbar buttons in dark mode (Stefan Ziegler, #25616).
+- Fix wxComboCtrl appearance in dark mode (#23766).
+- Fix wxTE_RICH wxTextCtrl appearance in dark mode (#25602).
+- Restore date/time pickers behaviour under non-English OS (#25511).
+
+wxOSX:
+
+- Fix border look for wxDVC, wxListBox, wxTextCtrl (Will Cosgrove, #25570).
+- Fix crash on startup when using Farsi as system language (#25561).
+
+
+3.3.0: (released 2025-06-06)
 ----------------------------
 
 This release contains the following major changes compared to 3.2.8:
@@ -281,6 +373,7 @@ All:
 - Fix wxWebResponse::GetMimeType(), add GetContentType() (Blake-Madden, #23461).
 - Improve locale matching algorithm (Ulrich Telle, #24855)
 - Make wxLogXXX(string) safe to use (#25414).
+- Make wxPlatformInfo::Get() thread-safe (#25459).
 - Make wxString {To,From}CDouble() faster and more robust (#23287).
 - Make wxrc-generated code faster to build (DoctorNoobingstoneIPresume, #24579).
 - Multiple headers with same name in wxWebRequest (Stefan Dinkelacker, #24878).
@@ -290,7 +383,10 @@ All:
 - Preserve errno in wxString methods (Lauri Nurmi, #23113).
 - Support constructing wxString from std::string_view (Ian McInerney, #23711).
 - Update 3rd party libraries to latest versions (Maarten Bent, #25112, #25325).
-- Update Turkish translations (Kerim Demirkaynak, #25267).
+- Update translations for Brazilian Portuguese (Felipe), Corsican (Patriccollu,
+  #25420), Czech (PB, #25412), French (#25400), German (tstkr),
+  Romanian (Cătălin Răceanu, #25403), Simplified Chinese (0tkl, #25450),
+  Turkish (Kerim Demirkaynak, #25267) and Ukrainian (Yuri Chornoivan, #25410).
 - Update language database (Ulrich Telle, #23437).
 - Use UTF-8 for environment variables (#25101).
 - Use variadic templates for vararg functions (#22981).
@@ -312,6 +408,7 @@ All (GUI):
 - Add wxApp::SetAppearance() to explicitly set dark or light mode (#24461).
 - Add wxAuiManager::{Save,Load}Layout() (#24235).
 - Add wxGrid::CopySelection() (Blake Madden, #24124).
+- Add wxInfoBar::ShowCheckBox() (Blake Madden, #25394).
 - Add wxRadioButton group support to wxGenericValidator (Bill Su, #24264).
 - Add wxRibbonBar::GetPageById() (Blake Madden, #24211).
 - Add wxStatusBar::AddFieldControl() (AliKet, #24092).
@@ -340,6 +437,7 @@ All (GUI):
 - Make wxGenericValidator more flexible (Bill Su, #24134).
 - Make wxGrid::ProcessTableMessage() more convenient to use (Joachim Wiesemann).
 - Provide reason for wxNotificationMessage dismissal (Lauri Nurmi, #24340).
+- Respect menu path style in wxFileHistory::AddFilesToMenu() (Bill Su, #25451).
 - Restore non-live-resize in wxAUI and wxSplitterWindow (AliKet, #24193).
 - Save/restore wxAuiNotebook layout (#24950).
 - Several fixes to scrolling in wxVListBox (Bill Su, #24278).
@@ -386,13 +484,16 @@ wxGTK:
 - Don't require libsecret-1.so presence at run-time (#25355).
 - Fix handling of binary secrets in wxSecretStore (Martin Corino, #24352).
 - Fix handling total window size with GNOME with X11 (#25348).
+- Fix height of read-only wxBitmapComboBox (#25468).
 - Fix missing enter/leave window events (#24339).
+- Fix wxGLCanvas scale when using EGL/Wayland in high DPI (Popax21, #23733).
 - Fix using wrong colour in wxPrinterDC (#24729).
 - Fix wxKeyEvent::GetKeyCode() in non-US layouts (Ivan Sorokin, #23379).
 - Implement generation of wxDPIChangedEvent (#19290, #24040).
 - Implement max length limit for multiline wxTextCtrl (Igor Korot, #24751).
 - Implement wxTextCtrl::SearchText() (Blake-Madden, #24897).
 - Improve wxInfoBar appearance when text doesn't fit (#24695).
+- Improve wxSlider min/max labels positioning (#24106).
 - Limit radius in wxDC::DrawRoundedRectangle() (Alex Shvartzkop, #24327).
 - Multiple fixes to mouse event generation (#24931, #24932, #24933).
 
@@ -417,6 +518,7 @@ wxMSW:
 - Fix saving geometry of Aero-snapped windows (Randalphwa).
 - Fix security issue when running on secure desktop (Sean Budd).
 - Fix using strings with Unicode characters outside of BMP (#25128).
+- Fix wxDisplay invalidation on connected display change (Marcel Pham, #25396).
 - Fix wxOverlay and wxScrolled auto-scrolling in RTL layout (AliKet, #25413).
 - Fix wxPropertyGrid expander buttons appearance in high DPI (#24304).
 - Implement support for wxBG_STYLE_TRANSPARENT (Maarten Bent, #23412).
